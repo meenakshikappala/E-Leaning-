@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
-import { DashboardView } from './components/DashboardView';
 import { SubjectsHub } from './components/SubjectsHub';
-import { SubjectDetail } from './components/SubjectDetail';
-import { AptitudeAcademy } from './components/AptitudeAcademy';
-import { HRInterviewDeck } from './components/HRInterviewDeck';
-import { LivePlayground } from './components/LivePlayground';
-import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { SUBJECTS_DATA } from './data/portalData';
 import { getInitialStreak, updateStreakOnActivity, StreakData } from './utils/streakManager';
-import { GraduationCap, Heart, Github } from 'lucide-react';
+import { GraduationCap, Loader2 } from 'lucide-react';
+
+// Code-split heavy views to eliminate chunk size warnings and maximize performance
+const DashboardView = lazy(() => import('./components/DashboardView').then(m => ({ default: m.DashboardView })));
+const SubjectDetail = lazy(() => import('./components/SubjectDetail').then(m => ({ default: m.SubjectDetail })));
+const AptitudeAcademy = lazy(() => import('./components/AptitudeAcademy').then(m => ({ default: m.AptitudeAcademy })));
+const HRInterviewDeck = lazy(() => import('./components/HRInterviewDeck').then(m => ({ default: m.HRInterviewDeck })));
+const LivePlayground = lazy(() => import('./components/LivePlayground').then(m => ({ default: m.LivePlayground })));
+const GlobalSearchModal = lazy(() => import('./components/GlobalSearchModal').then(m => ({ default: m.GlobalSearchModal })));
 
 export default function App() {
   // Authentication State
@@ -145,67 +147,74 @@ export default function App() {
         streak={streak}
       />
 
-      {/* Main View Container */}
+      {/* Main View Container with Lazy Loading Suspense */}
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-1">
-        {/* Performance & Analytics Dashboard */}
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            masteredMap={masteredMap}
-            quizScore={quizScore}
-            onNavigateSubject={handleSelectSubject}
-            onNavigateAptitude={() => setActiveTab('aptitude')}
-            streak={streak}
+        <Suspense fallback={
+          <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <span className="text-xs font-semibold">Loading portal module...</span>
+          </div>
+        }>
+          {/* Performance & Analytics Dashboard */}
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              masteredMap={masteredMap}
+              quizScore={quizScore}
+              onNavigateSubject={handleSelectSubject}
+              onNavigateAptitude={() => setActiveTab('aptitude')}
+              streak={streak}
+            />
+          )}
+
+          {/* Core Subjects View */}
+          {activeTab === 'subjects' && (
+            selectedSubject ? (
+              <SubjectDetail
+                subject={selectedSubject}
+                onBack={handleBackToSubjects}
+                masteredMap={masteredMap}
+                onToggleMastered={toggleMastered}
+              />
+            ) : (
+              <SubjectsHub
+                onSelectSubject={handleSelectSubject}
+                masteredMap={masteredMap}
+              />
+            )
+          )}
+
+          {/* Aptitude & Reasoning Academy */}
+          {activeTab === 'aptitude' && (
+            <AptitudeAcademy onScoreUpdate={handleScoreUpdate} />
+          )}
+
+          {/* Top 20 HR Interview Prep */}
+          {activeTab === 'hr' && (
+            <HRInterviewDeck />
+          )}
+
+          {/* Interactive Flashcards */}
+          {activeTab === 'flashcards' && (
+            <HRInterviewDeck />
+          )}
+
+          {/* Live Code Sandbox */}
+          {activeTab === 'sandbox' && (
+            <LivePlayground />
+          )}
+
+          {/* Global Search Dialog */}
+          <GlobalSearchModal
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            onSelectSubject={handleSelectSubject}
+            onNavigateTab={(tab) => {
+              setActiveTab(tab);
+              setSelectedSubjectId(null);
+            }}
           />
-        )}
-
-        {/* Core Subjects View */}
-        {activeTab === 'subjects' && (
-          selectedSubject ? (
-            <SubjectDetail
-              subject={selectedSubject}
-              onBack={handleBackToSubjects}
-              masteredMap={masteredMap}
-              onToggleMastered={toggleMastered}
-            />
-          ) : (
-            <SubjectsHub
-              onSelectSubject={handleSelectSubject}
-              masteredMap={masteredMap}
-            />
-          )
-        )}
-
-        {/* Aptitude & Reasoning Academy */}
-        {activeTab === 'aptitude' && (
-          <AptitudeAcademy onScoreUpdate={handleScoreUpdate} />
-        )}
-
-        {/* Top 20 HR Interview Prep */}
-        {activeTab === 'hr' && (
-          <HRInterviewDeck />
-        )}
-
-        {/* Interactive Flashcards */}
-        {activeTab === 'flashcards' && (
-          <HRInterviewDeck />
-        )}
-
-        {/* Live Code Sandbox */}
-        {activeTab === 'sandbox' && (
-          <LivePlayground />
-        )}
+        </Suspense>
       </main>
-
-      {/* Global Search Dialog */}
-      <GlobalSearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onSelectSubject={handleSelectSubject}
-        onNavigateTab={(tab) => {
-          setActiveTab(tab);
-          setSelectedSubjectId(null);
-        }}
-      />
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 bg-white/80 py-6 text-xs text-slate-500">
